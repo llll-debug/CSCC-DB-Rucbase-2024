@@ -13,7 +13,7 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 
 队伍成员：**吴奕民**、张梦圆
 
-支持赞助：[**RushDB 实验室**](https://github.com/RushDB-Lab)
+钻石赞助：[**RushDB 实验室**](https://github.com/RushDB-Lab)
 
 初赛完成度（100%），决赛完成度（99%，还有更多优化空间）。
 
