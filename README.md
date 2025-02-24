@@ -19,6 +19,8 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 
 决赛所使用的 [**TPC-C测试脚本**](https://github.com/Kosthi/TPCC-Tester) 一并开源。
 
+[![24决赛模拟赛.png](https://s21.ax1x.com/2025/02/24/pE1eO0J.png)](https://imgse.com/i/pE1eO0J)
+
 ## 实验环境：
 - 操作系统：Ubuntu 18.04 及以上(64位)
 - 编译器：GCC
