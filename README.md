@@ -21,6 +21,8 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 
 [![24决赛模拟赛.png](https://s21.ax1x.com/2025/02/24/pE1eO0J.png)](https://imgse.com/i/pE1eO0J)
 
+[![Visitors](https://api.visitorbadge.io/api/visitors?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024&label=visitors&countColor=%23263759)](https://visitorbadge.io/status?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024)
+
 ## 实验环境：
 - 操作系统：Ubuntu 18.04 及以上(64位)
 - 编译器：GCC
