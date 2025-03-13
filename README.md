@@ -39,10 +39,10 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 | 初赛  | 归并查询           | [Task6-SortMerge](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task6-SortMerge)                 |
 | 初赛  | 事务控制           | [Task7-TxnControl](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task7-TxnControl)               |
 | 初赛  | 冲突可串行化       | [Task8-ConflictSerial](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task8-ConflictSerial)       |
-| 初赛  | 间隙锁             | [Task9-GapLock](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task9-GapLock)                  |
-| 初赛  | 静态检查点         | [Task10-StaticCheckpointRecovery](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task10-StaticCheckpointRecovery) |
-| 初赛  | 性能测试           | [Task11-Performance](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task11-Performance)        |
-| 决赛  | TPC-C Benchmark    | [Final-Competition](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Final-Competition)          |
+| 初赛  | 间隙锁             | [Task9-GapLock](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task9-GapLock)                  |
+| 初赛  | 静态检查点         | [Task10-StaticCheckpointRecovery](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task10-StaticCheckpointRecovery) |
+| 初赛  | 性能测试           | [Task11-Performance](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task11-Performance)        |
+| 决赛  | TPC-C Benchmark    | [Final-Competition](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Final-Competition)          |
 
 ## 实验环境：
 - 操作系统：Ubuntu 18.04 及以上(64位)
