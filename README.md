@@ -19,9 +19,30 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 
 决赛所使用的 [**TPC-C测试脚本**](https://github.com/Kosthi/TPCC-Tester) 一并开源。
 
+[Final-Competition](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Final-Competition) 版本，最后在决赛赛后通道跑到上限 8w tpmc，期待 25 年🈶队伍能打出新的战绩。
+
 [![24决赛模拟赛.png](https://s21.ax1x.com/2025/02/24/pE1eO0J.png)](https://imgse.com/i/pE1eO0J)
 
-[![Visitors](https://api.visitorbadge.io/api/visitors?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024&label=visitors&countColor=%23263759)](https://visitorbadge.io/status?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024)
+## 分支信息
+
+参赛过程各阶段代码均以分支形式归档。
+
+目前主分支（main）不定期维护开发。
+
+| 阶段  | 题目名称           | 分支链接                                                                                   |
+|-------|--------------------|------------------------------------------------------------------------------------------|
+| 初赛  | 缓冲池管理         | [Task1-StorageManagement](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task1-StorageManagement) |
+| 初赛  | 查询执行           | [Task2-QueryExecution](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task2-QueryExecution)       |
+| 初赛  | 唯一索引           | [Task3-UniqueIndex](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task3-UniqueIndex)             |
+| 初赛  | 聚合算子           | [Task4-AggGroup](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task4-AggGroup)                   |
+| 初赛  | 不相关子查询       | [Task5-IrrSubquery](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task5-IrrSubquery)             |
+| 初赛  | 归并查询           | [Task6-SortMerge](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task6-SortMerge)                 |
+| 初赛  | 事务控制           | [Task7-TxnControl](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task7-TxnControl)               |
+| 初赛  | 冲突可串行化       | [Task8-ConflictSerial](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task8-ConflictSerial)       |
+| 初赛  | 间隙锁             | [Task9-GapLock](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task9-GapLock)                  |
+| 初赛  | 静态检查点         | [Task10-StaticCheckpointRecovery](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task10-StaticCheckpointRecovery) |
+| 初赛  | 性能测试           | [Task11-Performance](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Task11-Performance)        |
+| 决赛  | TPC-C Benchmark    | [Final-Competition](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/commits/Final-Competition)          |
 
 ## 实验环境：
 - 操作系统：Ubuntu 18.04 及以上(64位)
@@ -57,3 +78,5 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 
 ## License
 RMDB采用[木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2)，可以自由拷贝和使用源码, 当做修改或分发时, 请遵守[木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2).
+
+[![Visitors](https://api.visitorbadge.io/api/visitors?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024&label=visitors&countColor=%23263759)](https://visitorbadge.io/status?path=https://github.com/Kosthi/CSCC-DB-Rucbase-2024)
