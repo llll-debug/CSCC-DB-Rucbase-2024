@@ -35,10 +35,10 @@
    are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_YACC_TAB_HPP_INCLUDED
-# define YY_YY_YACC_TAB_HPP_INCLUDED
+#define YY_YY_YACC_TAB_HPP_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 0
+#define YYDEBUG 0
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -46,87 +46,83 @@ extern int yydebug;
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-  enum yytokentype
-  {
-    SHOW = 258,
-    TABLES = 259,
-    CREATE = 260,
-    TABLE = 261,
-    DROP = 262,
-    DESC = 263,
-    INSERT = 264,
-    INTO = 265,
-    VALUES = 266,
-    DELETE = 267,
-    FROM = 268,
-    ASC = 269,
-    ORDER = 270,
-    BY = 271,
-    WHERE = 272,
-    UPDATE = 273,
-    SET = 274,
-    SELECT = 275,
-    INT = 276,
-    CHAR = 277,
-    FLOAT = 278,
-    DATETIME = 279,
-    INDEX = 280,
-    AND = 281,
-    JOIN = 282,
-    EXIT = 283,
-    HELP = 284,
-    TXN_BEGIN = 285,
-    TXN_COMMIT = 286,
-    TXN_ABORT = 287,
-    TXN_ROLLBACK = 288,
-    ORDER_BY = 289,
-    ENABLE_NESTLOOP = 290,
-    ENABLE_SORTMERGE = 291,
-    COUNT = 292,
-    MAX = 293,
-    MIN = 294,
-    SUM = 295,
-    AS = 296,
-    GROUP = 297,
-    HAVING = 298,
-    IN = 299,
-    STATIC_CHECKPOINT = 300,
-    LOAD = 301,
-    OUTPUT_FILE = 302,
-    ON = 303,
-    OFF = 304,
-    LEQ = 305,
-    NEQ = 306,
-    GEQ = 307,
-    T_EOF = 308,
-    FILE_PATH = 309,
-    IDENTIFIER = 310,
-    VALUE_STRING = 311,
-    VALUE_INT = 312,
-    VALUE_FLOAT = 313,
-    VALUE_BOOL = 314
-  };
+#define YYTOKENTYPE
+enum yytokentype {
+  SHOW = 258,
+  TABLES = 259,
+  CREATE = 260,
+  TABLE = 261,
+  DROP = 262,
+  DESC = 263,
+  INSERT = 264,
+  INTO = 265,
+  VALUES = 266,
+  DELETE = 267,
+  FROM = 268,
+  ASC = 269,
+  ORDER = 270,
+  BY = 271,
+  WHERE = 272,
+  UPDATE = 273,
+  SET = 274,
+  SELECT = 275,
+  INT = 276,
+  CHAR = 277,
+  FLOAT = 278,
+  DATETIME = 279,
+  INDEX = 280,
+  AND = 281,
+  JOIN = 282,
+  EXIT = 283,
+  HELP = 284,
+  TXN_BEGIN = 285,
+  TXN_COMMIT = 286,
+  TXN_ABORT = 287,
+  TXN_ROLLBACK = 288,
+  ORDER_BY = 289,
+  ENABLE_NESTLOOP = 290,
+  ENABLE_SORTMERGE = 291,
+  COUNT = 292,
+  MAX = 293,
+  MIN = 294,
+  SUM = 295,
+  AS = 296,
+  GROUP = 297,
+  HAVING = 298,
+  IN = 299,
+  STATIC_CHECKPOINT = 300,
+  LOAD = 301,
+  OUTPUT_FILE = 302,
+  ON = 303,
+  OFF = 304,
+  LEQ = 305,
+  NEQ = 306,
+  GEQ = 307,
+  T_EOF = 308,
+  FILE_PATH = 309,
+  IDENTIFIER = 310,
+  VALUE_STRING = 311,
+  VALUE_INT = 312,
+  VALUE_FLOAT = 313,
+  VALUE_BOOL = 314
+};
 #endif
 
 /* Value type.  */
 
 /* Location type.  */
-#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
+#if !defined YYLTYPE && !defined YYLTYPE_IS_DECLARED
 typedef struct YYLTYPE YYLTYPE;
-struct YYLTYPE
-{
+struct YYLTYPE {
   int first_line;
   int first_column;
   int last_line;
   int last_column;
 };
-# define YYLTYPE_IS_DECLARED 1
-# define YYLTYPE_IS_TRIVIAL 1
+#define YYLTYPE_IS_DECLARED 1
+#define YYLTYPE_IS_TRIVIAL 1
 #endif
 
-
-
-int yyparse (void *yyscanner);
+int yyparse(void* yyscanner);
 
 #endif /* !YY_YY_YACC_TAB_HPP_INCLUDED  */

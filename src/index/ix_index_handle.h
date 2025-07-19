@@ -1,7 +1,7 @@
 /* Copyright (c) 2023 Renmin University of China
 RMDB is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
         http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -10,302 +10,337 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <optional>
 #include <readline/readline.h>
+
+#include <optional>
 
 #include "ix_defs.h"
 #include "transaction/transaction.h"
 
-enum class Operation { FIND = 0, INSERT, DELETE }; // 三种操作：查找、插入、删除
+enum class Operation {
+  FIND = 0,
+  INSERT,
+  DELETE
+};  // 三种操作：查找、插入、删除
 
 static const bool binary_search = false;
 
-inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
-    switch (type) {
-        case TYPE_INT: {
-            int ia = *(int *) a;
-            int ib = *(int *) b;
-            return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
-        }
-        case TYPE_FLOAT: {
-            float fa = *(float *) a;
-            float fb = *(float *) b;
-            return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
-        }
-        case TYPE_STRING:
-            return memcmp(a, b, col_len);
-        default:
-            throw InternalError("Unexpected data type");
+inline int ix_compare(const char* a, const char* b, ColType type, int col_len) {
+  switch (type) {
+    case TYPE_INT: {
+      int ia = *(int*)a;
+      int ib = *(int*)b;
+      return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
     }
+    case TYPE_FLOAT: {
+      float fa = *(float*)a;
+      float fb = *(float*)b;
+      return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
+    }
+    case TYPE_STRING:
+      return memcmp(a, b, col_len);
+    default:
+      throw InternalError("Unexpected data type");
+  }
 }
 
-inline int ix_compare(const char *a, const char *b, const std::vector<ColType> &col_types,
-                      const std::vector<int> &col_lens) {
-    int offset = 0;
-    for (size_t i = 0; i < col_types.size(); ++i) {
-        int res = ix_compare(a + offset, b + offset, col_types[i], col_lens[i]);
-        if (res != 0) return res;
-        offset += col_lens[i];
-    }
-    return 0;
+inline int ix_compare(const char* a, const char* b,
+                      const std::vector<ColType>& col_types,
+                      const std::vector<int>& col_lens) {
+  int offset = 0;
+  for (size_t i = 0; i < col_types.size(); ++i) {
+    int res = ix_compare(a + offset, b + offset, col_types[i], col_lens[i]);
+    if (res != 0) return res;
+    offset += col_lens[i];
+  }
+  return 0;
 }
 
 /* 管理B+树中的每个节点 */
 class IxNodeHandle {
-    friend class IxIndexHandle;
-    friend class IxScan;
+  friend class IxIndexHandle;
+  friend class IxScan;
 
-private:
-    const IxFileHdr *file_hdr; // 节点所在文件的头部信息
-    Page *page; // 存储节点的页面
-    IxPageHdr *page_hdr; // page->data的第一部分，指针指向首地址，长度为sizeof(IxPageHdr)
-    char *keys; // page->data的第二部分，指针指向首地址，长度为file_hdr->keys_size，每个key的长度为file_hdr->col_len
-    Rid *rids; // page->data的第三部分，指针指向首地址
+ private:
+  const IxFileHdr* file_hdr;  // 节点所在文件的头部信息
+  Page* page;                 // 存储节点的页面
+  IxPageHdr*
+      page_hdr;  // page->data的第一部分，指针指向首地址，长度为sizeof(IxPageHdr)
+  char*
+      keys;  // page->data的第二部分，指针指向首地址，长度为file_hdr->keys_size，每个key的长度为file_hdr->col_len
+  Rid* rids;  // page->data的第三部分，指针指向首地址
 
-public:
-    IxNodeHandle() = default;
+ public:
+  IxNodeHandle() = default;
 
-    IxNodeHandle(const IxFileHdr *file_hdr_, Page *page_) : file_hdr(file_hdr_), page(page_) {
-        page_hdr = reinterpret_cast<IxPageHdr *>(page->get_data());
-        keys = page->get_data() + sizeof(IxPageHdr);
-        rids = reinterpret_cast<Rid *>(keys + file_hdr->keys_size_);
+  IxNodeHandle(const IxFileHdr* file_hdr_, Page* page_)
+      : file_hdr(file_hdr_), page(page_) {
+    page_hdr = reinterpret_cast<IxPageHdr*>(page->get_data());
+    keys = page->get_data() + sizeof(IxPageHdr);
+    rids = reinterpret_cast<Rid*>(keys + file_hdr->keys_size_);
+  }
+
+  inline bool isSafe(Operation operation);
+
+  inline int get_size() { return page_hdr->num_key; }
+
+  inline void set_size(int size) { page_hdr->num_key = size; }
+
+  int get_max_size() { return file_hdr->btree_order_ + 1; }
+
+  int get_min_size() { return get_max_size() / 2; }
+
+  int key_at(int i) { return *(int*)get_key(i); }
+
+  /* 得到第i个孩子结点的page_no */
+  page_id_t value_at(int i) { return get_rid(i)->page_no; }
+
+  page_id_t get_page_no() { return page->get_page_id().page_no; }
+
+  inline PageId get_page_id() { return page->get_page_id(); }
+
+  page_id_t get_next_leaf() { return page_hdr->next_leaf; }
+
+  page_id_t get_prev_leaf() { return page_hdr->prev_leaf; }
+
+  inline page_id_t get_parent_page_no() { return page_hdr->parent; }
+
+  inline bool is_leaf_page() { return page_hdr->is_leaf; }
+
+  inline bool is_internal_page() { return !page_hdr->is_leaf; }
+
+  inline bool is_root_page() { return get_parent_page_no() == IX_NO_PAGE; }
+
+  inline void set_next_leaf(page_id_t page_no) {
+    page_hdr->next_leaf = page_no;
+  }
+
+  inline void set_prev_leaf(page_id_t page_no) {
+    page_hdr->prev_leaf = page_no;
+  }
+
+  inline void set_parent_page_no(page_id_t parent) {
+    page_hdr->parent = parent;
+  }
+
+  inline void set_is_leaf_page(bool val) { page_hdr->is_leaf = val; }
+
+  inline char* get_key(int key_idx) const {
+    return keys + key_idx * file_hdr->col_tot_len_;
+  }
+
+  inline Rid* get_rid(int rid_idx) const { return &rids[rid_idx]; }
+
+  inline char* get_last_key() { return get_key(get_size() - 1); }
+
+  inline Rid* get_last_rid() { return get_rid(get_size() - 1); }
+
+  void set_key(int key_idx, const char* key) {
+    memcpy(keys + key_idx * file_hdr->col_tot_len_, key,
+           file_hdr->col_tot_len_);
+  }
+
+  void set_rid(int rid_idx, const Rid& rid) { rids[rid_idx] = rid; }
+
+  int lower_bound(const char* target) const;
+
+  int upper_bound(const char* target) const;
+
+  void insert_pairs(int pos, const char* key, const Rid* rid, int n);
+
+  page_id_t internal_lookup(const char* key);
+
+  bool leaf_lookup(const char* key, Rid** value);
+
+  std::pair<int, int> insert(const char* key, const Rid& value);
+
+  // 用于在结点中的指定位置插入单个键值对
+  void insert_pair(int pos, const char* key, const Rid& rid) {
+    insert_pairs(pos, key, &rid, 1);
+  }
+
+  void insert_pair(int pos, const char* key, const Rid* rid) {
+    insert_pairs(pos, key, rid, 1);
+  }
+
+  void erase_pair(int pos);
+
+  std::pair<int, int> remove(const char* key);
+
+  /**
+   * @brief used in internal node to remove the last key in root node, and
+   * return the last child
+   *
+   * @return the last child
+   */
+  page_id_t remove_and_return_only_child() {
+    assert(get_size() == 1);
+    page_id_t child_page_no = value_at(0);
+    erase_pair(0);
+    assert(get_size() == 0);
+    return child_page_no;
+  }
+
+  /**
+   * @brief
+   * 由parent调用，寻找child，返回child在parent中的rid_idx∈[0,page_hdr->num_key)
+   * @param child
+   * @return int
+   */
+  int find_child(const std::shared_ptr<IxNodeHandle>& child) const {
+    // int rid_idx = lower_bound(child->get_key(0));
+    // TODO：优化为什么不二分
+    int rid_idx;
+    for (rid_idx = 0; rid_idx < page_hdr->num_key; rid_idx++) {
+      if (get_rid(rid_idx)->page_no == child->get_page_no()) {
+        break;
+      }
     }
+    assert(rid_idx < page_hdr->num_key);
+    return rid_idx;
+  }
 
-    inline bool isSafe(Operation operation);
+  inline int Compare(const char* a, const char* b) const {
+    return ix_compare(a, b, file_hdr->col_types_, file_hdr->col_lens_);
+  }
 
-    inline int get_size() { return page_hdr->num_key; }
-
-    inline void set_size(int size) { page_hdr->num_key = size; }
-
-    int get_max_size() { return file_hdr->btree_order_ + 1; }
-
-    int get_min_size() { return get_max_size() / 2; }
-
-    int key_at(int i) { return *(int *) get_key(i); }
-
-    /* 得到第i个孩子结点的page_no */
-    page_id_t value_at(int i) { return get_rid(i)->page_no; }
-
-    page_id_t get_page_no() { return page->get_page_id().page_no; }
-
-    inline PageId get_page_id() { return page->get_page_id(); }
-
-    page_id_t get_next_leaf() { return page_hdr->next_leaf; }
-
-    page_id_t get_prev_leaf() { return page_hdr->prev_leaf; }
-
-    inline page_id_t get_parent_page_no() { return page_hdr->parent; }
-
-    inline bool is_leaf_page() { return page_hdr->is_leaf; }
-
-    inline bool is_internal_page() { return !page_hdr->is_leaf; }
-
-    inline bool is_root_page() { return get_parent_page_no() == IX_NO_PAGE; }
-
-    inline void set_next_leaf(page_id_t page_no) { page_hdr->next_leaf = page_no; }
-
-    inline void set_prev_leaf(page_id_t page_no) { page_hdr->prev_leaf = page_no; }
-
-    inline void set_parent_page_no(page_id_t parent) { page_hdr->parent = parent; }
-
-    inline void set_is_leaf_page(bool val) { page_hdr->is_leaf = val; }
-
-    inline char *get_key(int key_idx) const { return keys + key_idx * file_hdr->col_tot_len_; }
-
-    inline Rid *get_rid(int rid_idx) const { return &rids[rid_idx]; }
-
-    inline char *get_last_key() { return get_key(get_size() - 1); }
-
-    inline Rid *get_last_rid() { return get_rid(get_size() - 1); }
-
-    void set_key(int key_idx, const char *key) {
-        memcpy(keys + key_idx * file_hdr->col_tot_len_, key, file_hdr->col_tot_len_);
-    }
-
-    void set_rid(int rid_idx, const Rid &rid) { rids[rid_idx] = rid; }
-
-    int lower_bound(const char *target) const;
-
-    int upper_bound(const char *target) const;
-
-    void insert_pairs(int pos, const char *key, const Rid *rid, int n);
-
-    page_id_t internal_lookup(const char *key);
-
-    bool leaf_lookup(const char *key, Rid **value);
-
-    std::pair<int, int> insert(const char *key, const Rid &value);
-
-    // 用于在结点中的指定位置插入单个键值对
-    void insert_pair(int pos, const char *key, const Rid &rid) { insert_pairs(pos, key, &rid, 1); }
-
-    void insert_pair(int pos, const char *key, const Rid *rid) { insert_pairs(pos, key, rid, 1); }
-
-    void erase_pair(int pos);
-
-    std::pair<int, int> remove(const char *key);
-
-    /**
-     * @brief used in internal node to remove the last key in root node, and return the last child
-     *
-     * @return the last child
-     */
-    page_id_t remove_and_return_only_child() {
-        assert(get_size() == 1);
-        page_id_t child_page_no = value_at(0);
-        erase_pair(0);
-        assert(get_size() == 0);
-        return child_page_no;
-    }
-
-    /**
-     * @brief 由parent调用，寻找child，返回child在parent中的rid_idx∈[0,page_hdr->num_key)
-     * @param child
-     * @return int
-     */
-    int find_child(const std::shared_ptr<IxNodeHandle> &child) const {
-        // int rid_idx = lower_bound(child->get_key(0));
-        // TODO：优化为什么不二分
-        int rid_idx;
-        for (rid_idx = 0; rid_idx < page_hdr->num_key; rid_idx++) {
-            if (get_rid(rid_idx)->page_no == child->get_page_no()) {
-                break;
-            }
-        }
-        assert(rid_idx < page_hdr->num_key);
-        return rid_idx;
-    }
-
-    inline int Compare(const char *a, const char *b) const {
-        return ix_compare(a, b, file_hdr->col_types_, file_hdr->col_lens_);
-    }
-
-    inline bool isFull() {
-        return page_hdr->num_key == get_max_size();
-    }
+  inline bool isFull() { return page_hdr->num_key == get_max_size(); }
 };
 
 /* B+树 */
 class IxIndexHandle {
-    friend class IxScan;
-    friend class IxManager;
+  friend class IxScan;
+  friend class IxManager;
 
-public:
-    int fd_; // 存储B+树的文件
-    RWLatch rw_latch_;
+ public:
+  int fd_;  // 存储B+树的文件
+  RWLatch rw_latch_;
 
-private:
-    DiskManager *disk_manager_;
-    BufferPoolManager *buffer_pool_manager_;
-    // IxFileHdr *file_hdr_; // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
-    std::mutex root_latch_;
+ private:
+  DiskManager* disk_manager_;
+  BufferPoolManager* buffer_pool_manager_;
+  // IxFileHdr *file_hdr_; //
+  // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
+  std::mutex root_latch_;
 
-    // class Context {
-    // public:
-    //     // When you insert into / remove from the B+ tree, store the write guard of header page here.
-    //     // Remember to drop the header page guard and set it to nullopt when you want to unlock all.
-    //     std::optional<WritePageGuard> header_page_{std::nullopt};
-    //
-    //     // Save the root page id here so that it's easier to know if the current page is the root page.
-    //     page_id_t root_page_id_{INVALID_PAGE_ID};
-    //
-    //     // Store the write guards of the pages that you're modifying here.
-    //     std::deque<WritePageGuard> write_set_;
-    //
-    //     // You may want to use this when getting value, but not necessary.
-    //     std::deque<ReadPageGuard> read_set_;
-    //
-    //     auto isRootPage(page_id_t page_id) -> bool { return page_id == root_page_id_; }
-    //
-    //     Operation op_type_;
-    // };
+  // class Context {
+  // public:
+  //     // When you insert into / remove from the B+ tree, store the write
+  //     guard of header page here.
+  //     // Remember to drop the header page guard and set it to nullopt when
+  //     you want to unlock all. std::optional<WritePageGuard>
+  //     header_page_{std::nullopt};
+  //
+  //     // Save the root page id here so that it's easier to know if the
+  //     current page is the root page. page_id_t
+  //     root_page_id_{INVALID_PAGE_ID};
+  //
+  //     // Store the write guards of the pages that you're modifying here.
+  //     std::deque<WritePageGuard> write_set_;
+  //
+  //     // You may want to use this when getting value, but not necessary.
+  //     std::deque<ReadPageGuard> read_set_;
+  //
+  //     auto isRootPage(page_id_t page_id) -> bool { return page_id ==
+  //     root_page_id_; }
+  //
+  //     Operation op_type_;
+  // };
 
-    void release_all_index_latch_page(Transaction *);
+  void release_all_index_latch_page(Transaction*);
 
-public:
-    IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
+ public:
+  IxIndexHandle(DiskManager* disk_manager,
+                BufferPoolManager* buffer_pool_manager, int fd);
 
-    ~IxIndexHandle() {
-        delete file_hdr_;
-    }
+  ~IxIndexHandle() { delete file_hdr_; }
 
-    void Draw(BufferPoolManager *bpm, const std::string &outf);
+  void Draw(BufferPoolManager* bpm, const std::string& outf);
 
-    IxFileHdr *file_hdr_; // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
+  IxFileHdr*
+      file_hdr_;  // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
 
-    std::shared_ptr<IxNodeHandle> create_node();
+  std::shared_ptr<IxNodeHandle> create_node();
 
-    // for get/create node
-    std::shared_ptr<IxNodeHandle> fetch_node(int page_no) const;
+  // for get/create node
+  std::shared_ptr<IxNodeHandle> fetch_node(int page_no) const;
 
-    void create_upper_parent_nodes(char *key, Rid *rid, int first_parent_page_no, int sum);
+  void create_upper_parent_nodes(char* key, Rid* rid, int first_parent_page_no,
+                                 int sum);
 
-    // for safe look empty table
-    bool is_empty();
+  // for safe look empty table
+  bool is_empty();
 
-    // for gap lock
-    RmRecord get_key(const Iid &iid) const;
+  // for gap lock
+  RmRecord get_key(const Iid& iid) const;
 
-    // for search
-    bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);
+  // for search
+  bool get_value(const char* key, std::vector<Rid>* result,
+                 Transaction* transaction);
 
-    std::pair<std::shared_ptr<IxNodeHandle>, bool> find_leaf_page(const char *key, Operation operation,
-                                                                  Transaction *transaction,
-                                                                  bool find_first = false);
+  std::pair<std::shared_ptr<IxNodeHandle>, bool> find_leaf_page(
+      const char* key, Operation operation, Transaction* transaction,
+      bool find_first = false);
 
-    // check unique
-    bool is_unique(const char *key, Rid &value, Transaction *transaction);
+  // check unique
+  bool is_unique(const char* key, Rid& value, Transaction* transaction);
 
-    // for insert
-    page_id_t insert_entry(const char *key, const Rid &value, Transaction *transaction);
+  // for insert
+  page_id_t insert_entry(const char* key, const Rid& value,
+                         Transaction* transaction);
 
-    std::shared_ptr<IxNodeHandle> split(std::shared_ptr<IxNodeHandle> &node);
+  std::shared_ptr<IxNodeHandle> split(std::shared_ptr<IxNodeHandle>& node);
 
-    void insert_into_parent(std::shared_ptr<IxNodeHandle> &old_node, const char *key,
-                            std::shared_ptr<IxNodeHandle> &new_node, Transaction *transaction);
+  void insert_into_parent(std::shared_ptr<IxNodeHandle>& old_node,
+                          const char* key,
+                          std::shared_ptr<IxNodeHandle>& new_node,
+                          Transaction* transaction);
 
-    // for delete
-    bool delete_entry(const char *key, Transaction *transaction);
+  // for delete
+  bool delete_entry(const char* key, Transaction* transaction);
 
-    bool coalesce_or_redistribute(std::shared_ptr<IxNodeHandle> &node, Transaction *transaction = nullptr,
-                                  bool *root_is_latched = nullptr);
+  bool coalesce_or_redistribute(std::shared_ptr<IxNodeHandle>& node,
+                                Transaction* transaction = nullptr,
+                                bool* root_is_latched = nullptr);
 
-    bool adjust_root(std::shared_ptr<IxNodeHandle> &old_root_node);
+  bool adjust_root(std::shared_ptr<IxNodeHandle>& old_root_node);
 
-    void redistribute(std::shared_ptr<IxNodeHandle> &neighbor_node, std::shared_ptr<IxNodeHandle> &node,
-                      std::shared_ptr<IxNodeHandle> &parent, int index);
+  void redistribute(std::shared_ptr<IxNodeHandle>& neighbor_node,
+                    std::shared_ptr<IxNodeHandle>& node,
+                    std::shared_ptr<IxNodeHandle>& parent, int index);
 
-    bool coalesce(std::shared_ptr<IxNodeHandle> *neighbor_node, std::shared_ptr<IxNodeHandle> *node,
-                  std::shared_ptr<IxNodeHandle> *parent, int index,
-                  Transaction *transaction, bool *root_is_latched);
+  bool coalesce(std::shared_ptr<IxNodeHandle>* neighbor_node,
+                std::shared_ptr<IxNodeHandle>* node,
+                std::shared_ptr<IxNodeHandle>* parent, int index,
+                Transaction* transaction, bool* root_is_latched);
 
-    Iid lower_bound(const char *key);
+  Iid lower_bound(const char* key);
 
-    Iid upper_bound(const char *key);
+  Iid upper_bound(const char* key);
 
-    Iid leaf_end() const;
+  Iid leaf_end() const;
 
-    Iid leaf_begin() const;
+  Iid leaf_begin() const;
 
-    // for index test
-    Rid get_rid(const Iid &iid) const;
+  // for index test
+  Rid get_rid(const Iid& iid) const;
 
-private:
-    // 辅助函数
-    void update_root_page_no(page_id_t root) { file_hdr_->root_page_ = root; }
+ private:
+  // 辅助函数
+  void update_root_page_no(page_id_t root) { file_hdr_->root_page_ = root; }
 
-    // std::shared_ptr<IxNodeHandle> create_node();
+  // std::shared_ptr<IxNodeHandle> create_node();
 
-    // for maintain data structure
-    void maintain_parent(std::shared_ptr<IxNodeHandle> &node);
+  // for maintain data structure
+  void maintain_parent(std::shared_ptr<IxNodeHandle>& node);
 
-    void erase_leaf(std::shared_ptr<IxNodeHandle> &leaf);
+  void erase_leaf(std::shared_ptr<IxNodeHandle>& leaf);
 
-    void release_node_handle(IxNodeHandle &node);
+  void release_node_handle(IxNodeHandle& node);
 
-    void maintain_child(std::shared_ptr<IxNodeHandle> &node, int child_idx);
+  void maintain_child(std::shared_ptr<IxNodeHandle>& node, int child_idx);
 
-    inline int Compare(const char *a, const char *b) const {
-        return ix_compare(a, b, file_hdr_->col_types_, file_hdr_->col_lens_);
-    }
+  inline int Compare(const char* a, const char* b) const {
+    return ix_compare(a, b, file_hdr_->col_types_, file_hdr_->col_lens_);
+  }
 };

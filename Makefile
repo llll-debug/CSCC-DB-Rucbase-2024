@@ -1,0 +1,2 @@
+fmt:
+	bash format.sh
