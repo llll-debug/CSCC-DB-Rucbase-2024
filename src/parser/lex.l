@@ -14,7 +14,7 @@
 
 %{
 #include "ast.h"
-#include "yacc.tab.hpp"
+#include "parser.yy.h"
 #include <iostream>
 
 // automatically update location

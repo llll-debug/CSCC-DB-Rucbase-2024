@@ -31,3 +31,9 @@ venv/
 
 # clion
 .clion.source.upload.marker
+
+# parser
+src/parser/lexer.h
+src/parser/lexer.cpp
+src/parser/parser.yy.h
+src/parser/parser.yy.cpp
