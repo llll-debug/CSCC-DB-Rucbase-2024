@@ -58,15 +58,15 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 - bison
 - readline
 
-欲查看有关依赖运行库和编译工具的更多信息，以及如何运行的说明，请查阅[RMDB使用文档](RMDB使用文档.pdf)
+欲查看有关依赖运行库和编译工具的更多信息，以及如何运行的说明，请查阅[RMDB使用文档](docs/RMDB使用文档.pdf)
 
-欲了解如何在非Linux系统PC上部署实验环境的指导，请查阅[RMDB环境配置文档](RMDB环境配置文档.pdf)
+欲了解如何在非Linux系统PC上部署实验环境的指导，请查阅[RMDB环境配置文档](docs/RMDB环境配置文档.pdf)
 
 ### 项目说明文档
 
-- [RMDB环境配置文档](RMDB环境配置文档.pdf)
-- [RMDB使用文档](RMDB使用文档.pdf)
-- [RMDB项目结构](RMDB项目结构.pdf)
+- [RMDB环境配置文档](docs/RMDB环境配置文档.pdf)
+- [RMDB使用文档](docs/RMDB使用文档.pdf)
+- [RMDB项目结构](docs/RMDB项目结构.pdf)
 - [测试说明文档](测试说明文档.pdf)
 
 ## 推荐参考资料
