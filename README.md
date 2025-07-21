@@ -1,4 +1,4 @@
-<div align="center">
+<img width="1412" height="357" alt="image" src="https://github.com/user-attachments/assets/39e41ec9-1f49-4ac7-b17f-c4e783dd0865" /><div align="center">
 <img src="RMDB.jpg"  width=25%  /> 
 </div>
 
@@ -43,6 +43,19 @@ RMDB由中国人民大学数据库教学团队开发，同时得到教育部-华
 | 初赛  | 静态检查点         | [Task10-StaticCheckpointRecovery](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task10-StaticCheckpointRecovery) |
 | 初赛  | 性能测试           | [Task11-Performance](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Task11-Performance)        |
 | 决赛  | TPC-C Benchmark    | [Final-Competition](https://github.com/Kosthi/CSCC-DB-Rucbase-2024/tree/Final-Competition)          |
+
+| 阶段  | 题目名称           |
+|-------|--------------------|
+| 初赛  | 存储管理  |
+| 初赛  | 查询执行  |
+| 初赛  | 唯一索引  |
+| 初赛  | 查询优化  |
+| 初赛  | 聚合函数  |
+| 初赛  | 半连接  |
+| 初赛  | 存储管理  |
+| 初赛  | 事务控制  |
+| 初赛  | 多版本并发控制  |
+| 初赛  | 基于静态检查点的故障恢复  |
 
 ## 实验环境：
 - 操作系统：Ubuntu 18.04 及以上(64位)
