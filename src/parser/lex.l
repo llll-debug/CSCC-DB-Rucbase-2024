@@ -1,20 +1,18 @@
-/* keywords are case insensitive */
+    /* keywords are case insensitive */
 %option caseless
-/* we don't need yywrap() function */
+    /* we don't need yywrap() function */
 %option noyywrap
-/* we don't need yyunput() function */
+    /* we don't need yyunput() function */
 %option nounput
-/* we don't need input() function */
+    /* we don't need input() function */
 %option noinput
-/* enable location */
+    /* enable location */
 %option bison-bridge
 %option bison-locations
-/* Enable Reentrant Model to support multi-threaded calls */
-%option reentrant
 
 %{
 #include "ast.h"
-#include "parser.yy.h"
+#include "yacc.tab.h"
 #include <iostream>
 
 // automatically update location
@@ -42,7 +40,6 @@ value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
-file_path \.\.[0-9a-zA-Z_\/\.\-]+
 
 %x STATE_COMMENT
 
@@ -80,7 +77,6 @@ file_path \.\.[0-9a-zA-Z_\/\.\-]+
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
-"DATETIME" { return DATETIME; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -91,19 +87,6 @@ file_path \.\.[0-9a-zA-Z_\/\.\-]+
 "ASC" { return ASC; }
 "ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
 "ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
-"COUNT" { return COUNT; }
-"MAX" { return MAX; }
-"MIN" { return MIN; }
-"SUM" { return SUM; }
-"AS" { return AS; }
-"GROUP" { return GROUP; }
-"HAVING" { return HAVING; }
-"IN" { return IN; }
-"STATIC_CHECKPOINT" { return STATIC_CHECKPOINT; }
-"LOAD" { return LOAD; }
-"OUTPUT_FILE" { return OUTPUT_FILE; }
-"ON" { return ON; }
-"OFF" { return OFF; }
 "TRUE" { 
     yylval->sv_bool = true;
     return VALUE_BOOL; 
@@ -116,7 +99,6 @@ file_path \.\.[0-9a-zA-Z_\/\.\-]+
 ">=" { return GEQ; }
 "<=" { return LEQ; }
 "<>" { return NEQ; }
-"!=" { return NEQ; }
 {single_op} { return yytext[0]; }
     /* id */
 {identifier} {
@@ -135,10 +117,6 @@ file_path \.\.[0-9a-zA-Z_\/\.\-]+
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
-}
-{file_path} {
-    yylval->sv_str = yytext;
-    return FILE_PATH;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }
