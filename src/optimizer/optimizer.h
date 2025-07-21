@@ -32,33 +32,34 @@ class Optimizer {
         {}
     
     std::shared_ptr<Plan> plan_query(std::shared_ptr<Query> query, Context *context) {
-        if (auto x = std::dynamic_pointer_cast<ast::Help>(query->parse)) {
-            // help;
-            return std::make_shared<OtherPlan>(T_Help, std::string());
-        } else if (auto x = std::dynamic_pointer_cast<ast::ShowTables>(query->parse)) {
-            // show tables;
-            return std::make_shared<OtherPlan>(T_ShowTable, std::string());
-        } else if (auto x = std::dynamic_pointer_cast<ast::ShowIndexes>(query->parse)) {
-            // show indexs;
-            return std::make_shared<OtherPlan>(T_ShowIndex, x->tab_name);
-        } else if (auto x = std::dynamic_pointer_cast<ast::DescTable>(query->parse)) {
-            // desc table;
-            return std::make_shared<OtherPlan>(T_DescTable, x->tab_name);
-        } else if (auto x = std::dynamic_pointer_cast<ast::TxnBegin>(query->parse)) {
-            // begin;
-            return std::make_shared<OtherPlan>(T_Transaction_begin, std::string());
-        } else if (auto x = std::dynamic_pointer_cast<ast::TxnAbort>(query->parse)) {
-            // abort;
-            return std::make_shared<OtherPlan>(T_Transaction_abort, std::string());
-        } else if (auto x = std::dynamic_pointer_cast<ast::TxnCommit>(query->parse)) {
-            // commit;
-            return std::make_shared<OtherPlan>(T_Transaction_commit, std::string());
+        // 重新组织if-else条件判断顺序
+        if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
+            // Set Knob Plan
+            return std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
         } else if (auto x = std::dynamic_pointer_cast<ast::TxnRollback>(query->parse)) {
             // rollback;
             return std::make_shared<OtherPlan>(T_Transaction_rollback, std::string());
-        } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
-            // Set Knob Plan
-            return std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
+        } else if (auto x = std::dynamic_pointer_cast<ast::TxnCommit>(query->parse)) {
+            // commit;
+            return std::make_shared<OtherPlan>(T_Transaction_commit, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::TxnAbort>(query->parse)) {
+            // abort;
+            return std::make_shared<OtherPlan>(T_Transaction_abort, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::TxnBegin>(query->parse)) {
+            // begin;
+            return std::make_shared<OtherPlan>(T_Transaction_begin, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::DescTable>(query->parse)) {
+            // desc table;
+            return std::make_shared<OtherPlan>(T_DescTable, x->tab_name);
+        } else if (auto x = std::dynamic_pointer_cast<ast::ShowIndexes>(query->parse)) {
+            // show indexs;
+            return std::make_shared<OtherPlan>(T_ShowIndex, x->tab_name);
+        } else if (auto x = std::dynamic_pointer_cast<ast::ShowTables>(query->parse)) {
+            // show tables;
+            return std::make_shared<OtherPlan>(T_ShowTable, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::Help>(query->parse)) {
+            // help;
+            return std::make_shared<OtherPlan>(T_Help, std::string());
         } else {
             return planner_->do_planner(query, context);
         }

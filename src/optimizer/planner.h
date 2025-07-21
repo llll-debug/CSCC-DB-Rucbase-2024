@@ -30,8 +30,8 @@ class Planner {
    private:
     SmManager *sm_manager_;
 
-    bool enable_nestedloop_join = true;
     bool enable_sortmerge_join = false;
+    bool enable_nestedloop_join = true;
 
    public:
     Planner(SmManager *sm_manager) : sm_manager_(sm_manager) {}
@@ -39,29 +39,29 @@ class Planner {
 
     std::shared_ptr<Plan> do_planner(std::shared_ptr<Query> query, Context *context);
 
-    void set_enable_nestedloop_join(bool set_val) { enable_nestedloop_join = set_val; }
-    
     void set_enable_sortmerge_join(bool set_val) { enable_sortmerge_join = set_val; }
+    
+    void set_enable_nestedloop_join(bool set_val) { enable_nestedloop_join = set_val; }
     
     // 公共方法：供QueryOptimizer使用
     bool get_index_cols(std::string &tab_name, std::vector<Condition> &curr_conds, std::vector<std::string> &index_col_names);
     
    private:
-    std::shared_ptr<Query> logical_optimization(std::shared_ptr<Query> query, Context *context);
-    std::shared_ptr<Plan> physical_optimization(std::shared_ptr<Query> query, Context *context);
-
-    std::shared_ptr<Plan> make_one_rel(std::shared_ptr<Query> query);
+    std::shared_ptr<Plan> generate_select_plan(std::shared_ptr<Query> query, Context *context);
 
     std::shared_ptr<Plan> generate_sort_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan);
     
-    std::shared_ptr<Plan> generate_select_plan(std::shared_ptr<Query> query, Context *context);
+    std::shared_ptr<Plan> make_one_rel(std::shared_ptr<Query> query);
+
+    std::shared_ptr<Plan> physical_optimization(std::shared_ptr<Query> query, Context *context);
+    std::shared_ptr<Query> logical_optimization(std::shared_ptr<Query> query, Context *context);
 
    private:
     // int get_indexNo(std::string tab_name, std::vector<Condition> curr_conds);
 
     ColType interp_sv_type(ast::SvType sv_type) {
         std::map<ast::SvType, ColType> m = {
-            {ast::SV_TYPE_INT, TYPE_INT}, {ast::SV_TYPE_FLOAT, TYPE_FLOAT}, {ast::SV_TYPE_STRING, TYPE_STRING}};
+            {ast::SV_TYPE_STRING, TYPE_STRING}, {ast::SV_TYPE_FLOAT, TYPE_FLOAT}, {ast::SV_TYPE_INT, TYPE_INT}};
         return m.at(sv_type);
     }
 };

@@ -24,7 +24,6 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::optimize(std::shared_ptr<Query> qu
         
         // 应用谓词下推（只处理WHERE条件）
         plan = applyPredicatePushdown(plan, query->conds);
-        
     } else {
         // 多表查询需要分离连接条件和过滤条件
         std::vector<Condition> join_conditions;
@@ -50,7 +49,7 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::optimize(std::shared_ptr<Query> qu
     
     // 应用投影下推（除非是SELECT *）
     if (!query->is_select_all) {
-    plan = applyProjectionPushdown(plan, query->cols);
+        plan = applyProjectionPushdown(plan, query->cols);
     }
     
     // 为了满足题目显示要求，所有查询都需要顶层Project节点
@@ -124,7 +123,8 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::buildOptimalJoinOrder(
     std::shared_ptr<PlanTreeNode> result = std::make_shared<ScanNode>(sorted_tables[0]);
     
     // 逐步添加剩余表，构建左深树结构
-    for (size_t i = 1; i < sorted_tables.size(); i++) {
+    size_t i = 1;
+    while (i < sorted_tables.size()) {
         std::string next_table = sorted_tables[i];
         auto next_scan = std::make_shared<ScanNode>(next_table);
         
@@ -137,7 +137,8 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::buildOptimalJoinOrder(
         if (join_conditions.empty() && i < sorted_tables.size() - 1) {
             // 寻找能与当前结果连接的表
             bool found_connectable = false;
-            for (size_t j = i + 1; j < sorted_tables.size(); j++) {
+            size_t j = i + 1;
+            while (j < sorted_tables.size()) {
                 std::string candidate_table = sorted_tables[j];
                 std::vector<std::string> candidate_tables = {candidate_table};
                 auto candidate_conditions = extractJoinConditions(conditions, current_tables, candidate_tables);
@@ -152,12 +153,14 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::buildOptimalJoinOrder(
                     found_connectable = true;
                     break;
                 }
+                ++j;
             }
         }
         
         // 创建新的连接节点（左深树：当前结果作为左子树，新表作为右子树）
         // 即使没有连接条件也要创建连接节点（笛卡尔积）
         result = std::make_shared<JoinNode>(result, next_scan, join_conditions);
+        ++i;
     }
     
     return result;
@@ -182,7 +185,7 @@ size_t QueryOptimizer::estimateJoinResultSize(std::shared_ptr<PlanTreeNode> left
     // 如果能找到连接条件，使用更精确的选择性估算
     try {
         // 简化的选择性估算：基于表大小的启发式方法
-    size_t max_size = std::max(left_size, right_size);
+        size_t max_size = std::max(left_size, right_size);
         if (max_size > 0) {
             selectivity = std::min(0.5, 100.0 / max_size); // 自适应选择性
         }
@@ -220,27 +223,7 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::applyPredicatePushdown(
 std::shared_ptr<PlanTreeNode> QueryOptimizer::pushPredicatesDown(
     std::shared_ptr<PlanTreeNode> node, std::vector<std::string>& remaining_conditions) {
     
-    if (auto scan = std::dynamic_pointer_cast<ScanNode>(node)) {
-        // 在扫描节点上添加适用的过滤条件
-        std::vector<std::string> applicable_conditions;
-        auto node_tables = scan->getOutputTables();
-        
-        auto it = remaining_conditions.begin();
-        while (it != remaining_conditions.end()) {
-            if (conditionAppliesTo(*it, node_tables)) {
-                applicable_conditions.push_back(*it);
-                it = remaining_conditions.erase(it);
-            } else {
-                ++it;
-            }
-        }
-        
-        if (!applicable_conditions.empty()) {
-            return std::make_shared<FilterNode>(scan, applicable_conditions);
-        }
-        return scan;
-        
-    } else if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
+    if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
         // 获取左右子树涉及的表
         auto left_tables = join->getLeft()->getOutputTables();
         auto right_tables = join->getRight()->getOutputTables();
@@ -307,6 +290,25 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::pushPredicatesDown(
         auto new_join = std::make_shared<JoinNode>(left, right, join->getConditions());
         
         return new_join;
+    } else if (auto scan = std::dynamic_pointer_cast<ScanNode>(node)) {
+        // 在扫描节点上添加适用的过滤条件
+        std::vector<std::string> applicable_conditions;
+        auto node_tables = scan->getOutputTables();
+        
+        auto it = remaining_conditions.begin();
+        while (it != remaining_conditions.end()) {
+            if (conditionAppliesTo(*it, node_tables)) {
+                applicable_conditions.push_back(*it);
+                it = remaining_conditions.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        
+        if (!applicable_conditions.empty()) {
+            return std::make_shared<FilterNode>(scan, applicable_conditions);
+        }
+        return scan;
     }
     
     return node;
@@ -314,25 +316,9 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::pushPredicatesDown(
 
 // 辅助函数：从计划树节点中收集所有需要的列（连接条件+过滤条件）
 void QueryOptimizer::collectColumnsFromNode(std::shared_ptr<PlanTreeNode> node, std::set<std::string>& required_cols) {
-    if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
-        // 收集连接条件中的列
-        for (const auto& condition : join->getConditions()) {
-            std::regex col_regex(R"((\w+)\.(\w+))");
-            std::sregex_iterator iter(condition.begin(), condition.end(), col_regex);
-            std::sregex_iterator end;
-            
-            while (iter != end) {
-                std::string prefix = iter->str(1);     // 表名或别名
-                std::string col_name = iter->str(2);   // 列名
-                required_cols.insert(prefix + "." + col_name);
-                ++iter;
-            }
-        }
-        
+    if (auto project = std::dynamic_pointer_cast<ProjectNode>(node)) {
         // 递归处理子节点
-        collectColumnsFromNode(join->getLeft(), required_cols);
-        collectColumnsFromNode(join->getRight(), required_cols);
-        
+        collectColumnsFromNode(project->getChild(), required_cols);
     } else if (auto filter = std::dynamic_pointer_cast<FilterNode>(node)) {
         // 收集过滤条件中的列
         for (const auto& condition : filter->getConditions()) {
@@ -350,11 +336,24 @@ void QueryOptimizer::collectColumnsFromNode(std::shared_ptr<PlanTreeNode> node, 
         
         // 递归处理子节点
         collectColumnsFromNode(filter->getChild(), required_cols);
+    } else if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
+        // 收集连接条件中的列
+        for (const auto& condition : join->getConditions()) {
+            std::regex col_regex(R"((\w+)\.(\w+))");
+            std::sregex_iterator iter(condition.begin(), condition.end(), col_regex);
+            std::sregex_iterator end;
+            
+            while (iter != end) {
+                std::string prefix = iter->str(1);     // 表名或别名
+                std::string col_name = iter->str(2);   // 列名
+                required_cols.insert(prefix + "." + col_name);
+                ++iter;
+            }
+        }
         
-    } else if (auto project = std::dynamic_pointer_cast<ProjectNode>(node)) {
         // 递归处理子节点
-        collectColumnsFromNode(project->getChild(), required_cols);
-        
+        collectColumnsFromNode(join->getLeft(), required_cols);
+        collectColumnsFromNode(join->getRight(), required_cols);
     } else if (auto scan = std::dynamic_pointer_cast<ScanNode>(node)) {
         // 扫描节点是叶子节点，不需要处理
         return;
@@ -400,101 +399,7 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::applyProjectionPushdown(
 std::shared_ptr<PlanTreeNode> QueryOptimizer::pushProjectionsDown(
     std::shared_ptr<PlanTreeNode> node, const std::set<std::string>& required_cols, bool is_root) {
     
-    if (auto filter = std::dynamic_pointer_cast<FilterNode>(node)) {
-        // Filter节点处理
-        auto filter_child = filter->getChild();
-        
-        if (auto scan_child = std::dynamic_pointer_cast<ScanNode>(filter_child)) {
-            // Filter->Scan：不在它们之间添加任何Project
-            auto new_filter = std::make_shared<FilterNode>(scan_child, filter->getConditions());
-            
-            // 只有在非根节点且确实需要优化时才添加投影
-            if (!is_root) {
-                std::vector<std::string> output_cols;
-                auto output_tables = new_filter->getOutputTables();
-                
-                for (const auto& col : required_cols) {
-                    if (belongsToTables(col, output_tables)) {
-                        output_cols.push_back(col);
-                    }
-                }
-                
-                // 获取表的总列数
-                std::string table_name = scan_child->getTableName();
-                size_t total_cols = getAllColumnsCount(table_name);
-                
-                // 修改投影下推条件：只要需要的列少于总列数就进行优化
-                if (!output_cols.empty() && output_cols.size() < total_cols) {
-                    return std::make_shared<ProjectNode>(new_filter, output_cols);
-                }
-            }
-            
-            return new_filter;
-            
-        } else {
-            // Filter的子节点不是Scan，递归处理
-            std::set<std::string> child_needed_cols = required_cols;
-            
-            // 添加Filter条件中的列
-            for (const auto& condition : filter->getConditions()) {
-                std::regex col_regex(R"((\w+)\.(\w+))");
-                std::sregex_iterator iter(condition.begin(), condition.end(), col_regex);
-                std::sregex_iterator end;
-                
-                while (iter != end) {
-                    std::string full_col = iter->str();
-                    child_needed_cols.insert(full_col);
-                    ++iter;
-                }
-            }
-            
-            auto child = pushProjectionsDown(filter->getChild(), child_needed_cols, false);
-            auto new_filter = std::make_shared<FilterNode>(child, filter->getConditions());
-            
-            // 检查是否需要在Filter之上添加投影
-            // 更严格的判断条件：只有当输出列明显少于子节点列时才添加投影
-            // 避免在接近顶层添加无意义的投影节点
-            std::vector<std::string> output_cols;
-            auto output_tables = new_filter->getOutputTables();
-            
-            for (const auto& col : required_cols) {
-                if (belongsToTables(col, output_tables)) {
-                    output_cols.push_back(col);
-                }
-            }
-            
-            // 更严格的判断条件：只有当输出列明显少于子节点列时才添加投影
-            // 避免在接近顶层添加无意义的投影节点
-            if (!output_cols.empty() && output_cols.size() < child_needed_cols.size() && 
-                output_cols.size() <= child_needed_cols.size() / 2 && !is_root) {  // 添加!is_root检查
-                return std::make_shared<ProjectNode>(new_filter, output_cols);
-            }
-            
-            return new_filter;
-        }
-        
-    } else if (auto scan = std::dynamic_pointer_cast<ScanNode>(node)) {
-        // 独立的Scan节点
-        if (!is_root) {  // 只有在非根节点时才考虑添加投影优化
-        std::vector<std::string> scan_cols;
-            std::string table_name = scan->getTableName();
-            
-        for (const auto& col : required_cols) {
-                if (belongsToSingleTable(col, table_name)) {
-                    scan_cols.push_back(col);
-                }
-            }
-            
-            size_t total_cols = getAllColumnsCount(table_name);
-            // 修改投影下推条件：只要需要的列少于总列数且大于0就进行优化
-            if (!scan_cols.empty() && scan_cols.size() < total_cols) {
-                return std::make_shared<ProjectNode>(scan, scan_cols);
-            }
-        }
-        
-        return scan;
-        
-    } else if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
+    if (auto join = std::dynamic_pointer_cast<JoinNode>(node)) {
         // Join节点：分配列到左右子树
         auto left_tables = join->getLeft()->getOutputTables();
         auto right_tables = join->getRight()->getOutputTables();
@@ -567,7 +472,97 @@ std::shared_ptr<PlanTreeNode> QueryOptimizer::pushProjectionsDown(
         }
         
         return std::make_shared<JoinNode>(left, right, join->getConditions());
+    } else if (auto scan = std::dynamic_pointer_cast<ScanNode>(node)) {
+        // 独立的Scan节点
+        if (!is_root) {  // 只有在非根节点时才考虑添加投影优化
+            std::vector<std::string> scan_cols;
+            std::string table_name = scan->getTableName();
+            
+            for (const auto& col : required_cols) {
+                if (belongsToSingleTable(col, table_name)) {
+                    scan_cols.push_back(col);
+                }
+            }
+            
+            size_t total_cols = getAllColumnsCount(table_name);
+            // 修改投影下推条件：只要需要的列少于总列数且大于0就进行优化
+            if (!scan_cols.empty() && scan_cols.size() < total_cols) {
+                return std::make_shared<ProjectNode>(scan, scan_cols);
+            }
+        }
         
+        return scan;
+    } else if (auto filter = std::dynamic_pointer_cast<FilterNode>(node)) {
+        // Filter节点处理
+        auto filter_child = filter->getChild();
+        
+        if (auto scan_child = std::dynamic_pointer_cast<ScanNode>(filter_child)) {
+            // Filter->Scan：不在它们之间添加任何Project
+            auto new_filter = std::make_shared<FilterNode>(scan_child, filter->getConditions());
+            
+            // 只有在非根节点且确实需要优化时才添加投影
+            if (!is_root) {
+                std::vector<std::string> output_cols;
+                auto output_tables = new_filter->getOutputTables();
+                
+                for (const auto& col : required_cols) {
+                    if (belongsToTables(col, output_tables)) {
+                        output_cols.push_back(col);
+                    }
+                }
+                
+                // 获取表的总列数
+                std::string table_name = scan_child->getTableName();
+                size_t total_cols = getAllColumnsCount(table_name);
+                
+                // 修改投影下推条件：只要需要的列少于总列数就进行优化
+                if (!output_cols.empty() && output_cols.size() < total_cols) {
+                    return std::make_shared<ProjectNode>(new_filter, output_cols);
+                }
+            }
+            
+            return new_filter;
+        } else {
+            // Filter的子节点不是Scan，递归处理
+            std::set<std::string> child_needed_cols = required_cols;
+            
+            // 添加Filter条件中的列
+            for (const auto& condition : filter->getConditions()) {
+                std::regex col_regex(R"((\w+)\.(\w+))");
+                std::sregex_iterator iter(condition.begin(), condition.end(), col_regex);
+                std::sregex_iterator end;
+                
+                while (iter != end) {
+                    std::string full_col = iter->str();
+                    child_needed_cols.insert(full_col);
+                    ++iter;
+                }
+            }
+            
+            auto child = pushProjectionsDown(filter->getChild(), child_needed_cols, false);
+            auto new_filter = std::make_shared<FilterNode>(child, filter->getConditions());
+            
+            // 检查是否需要在Filter之上添加投影
+            // 更严格的判断条件：只有当输出列明显少于子节点列时才添加投影
+            // 避免在接近顶层添加无意义的投影节点
+            std::vector<std::string> output_cols;
+            auto output_tables = new_filter->getOutputTables();
+            
+            for (const auto& col : required_cols) {
+                if (belongsToTables(col, output_tables)) {
+                    output_cols.push_back(col);
+                }
+            }
+            
+            // 更严格的判断条件：只有当输出列明显少于子节点列时才添加投影
+            // 避免在接近顶层添加无意义的投影节点
+            if (!output_cols.empty() && output_cols.size() < child_needed_cols.size() && 
+                output_cols.size() <= child_needed_cols.size() / 2 && !is_root) {  // 添加!is_root检查
+                return std::make_shared<ProjectNode>(new_filter, output_cols);
+            }
+            
+            return new_filter;
+        }
     } else if (auto project = std::dynamic_pointer_cast<ProjectNode>(node)) {
         // 遇到已有的Project节点，保持不变
         return project;
@@ -672,20 +667,20 @@ std::string QueryOptimizer::conditionToString(const Condition& cond) {
     
     // 操作符
     switch (cond.op) {
-        case OP_EQ: result += "="; break;
-        case OP_NE: result += "<>"; break;  // 题目要求使用<>而不是!=
-        case OP_LT: result += "<"; break;
-        case OP_GT: result += ">"; break;
-        case OP_LE: result += "<="; break;
         case OP_GE: result += ">="; break;
+        case OP_LE: result += "<="; break;
+        case OP_GT: result += ">"; break;
+        case OP_LT: result += "<"; break;
+        case OP_NE: result += "<>"; break;  // 题目要求使用<>而不是!=
+        case OP_EQ: result += "="; break;
     }
     
     // 右操作数
     if (cond.is_rhs_val) {
         // 右侧是值
         switch (cond.rhs_val.type) {
-            case TYPE_INT:
-                result += std::to_string(cond.rhs_val.int_val);
+            case TYPE_STRING:
+                result += "'" + cond.rhs_val.str_val + "'";  // 保持与原始SQL一致，添加引号
                 break;
             case TYPE_FLOAT: {
                 // 智能浮点数格式化：保持合理的小数显示
@@ -703,8 +698,8 @@ std::string QueryOptimizer::conditionToString(const Condition& cond) {
                 result += buffer;
                 break;
             }
-            case TYPE_STRING:
-                result += "'" + cond.rhs_val.str_val + "'";  // 保持与原始SQL一致，添加引号
+            case TYPE_INT:
+                result += std::to_string(cond.rhs_val.int_val);
                 break;
         }
     } else {
@@ -732,19 +727,19 @@ bool QueryOptimizer::conditionAppliesTo(const std::string& condition,
         if (std::regex_search(condition, match, col_regex)) {
             std::string col_name = match.str(1);
             // 检查任一给定表是否包含该列
-    for (const auto& table : tables) {
+            for (const auto& table : tables) {
                 try {
                     auto& table_meta = sm_manager_->db_.get_table(table);
                     if (table_meta.is_col(col_name)) {
-            return true;
+                        return true;
                     }
                 } catch (...) {
                     continue;
                 }
+            }
         }
+        return false;
     }
-    return false;
-}
 
     // 如果条件涉及的所有表都在给定的表列表中，则适用
     for (const auto& cond_table : condition_tables) {
@@ -877,64 +872,7 @@ std::shared_ptr<Plan> QueryOptimizer::convertToExecutionPlan(std::shared_ptr<Pla
 
 std::shared_ptr<Plan> QueryOptimizer::convertPlanTreeNodeToPlan(std::shared_ptr<PlanTreeNode> node,
                                                                 const std::vector<Condition>& all_conditions) {
-    if (auto scan_node = std::dynamic_pointer_cast<ScanNode>(node)) {
-        // 转换Scan节点
-        std::string table_name = scan_node->getTableName();
-        std::vector<Condition> table_conditions = findConditionsForTables(all_conditions, {table_name});
-        
-        // 检查是否有索引可用
-        std::vector<std::string> index_col_names;
-        bool index_exist = false;
-        
-        if (planner_) {
-            // 使用Planner的索引检查功能
-            auto temp_conditions = table_conditions;  // 复制一份，因为get_index_cols可能修改
-            index_exist = planner_->get_index_cols(const_cast<std::string&>(table_name), temp_conditions, index_col_names);
-        } else {
-            // 简化的索引检查：只检查是否有等值条件
-            for (const auto& cond : table_conditions) {
-                if (cond.is_rhs_val && cond.op == OP_EQ) {
-    try {
-        auto& table_meta = sm_manager_->db_.get_table(table_name);
-                        for (const auto& [index_name, index] : table_meta.indexes) {
-                            if (!index.cols.empty() && index.cols[0].name == cond.lhs_col.col_name) {
-                                index_col_names.push_back(cond.lhs_col.col_name);
-                                index_exist = true;
-                                break;
-                            }
-                        }
-                        if (index_exist) break;
-    } catch (...) {
-                        continue;
-                    }
-                }
-            }
-        }
-        
-        if (index_exist) {
-            return std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, table_name, 
-                                            table_conditions, index_col_names);
-        } else {
-            return std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, table_name, 
-                                            table_conditions, std::vector<std::string>());
-        }
-        
-    } else if (auto filter_node = std::dynamic_pointer_cast<FilterNode>(node)) {
-        // 转换Filter节点
-        auto child_plan = convertPlanTreeNodeToPlan(filter_node->getChild(), all_conditions);
-        auto filter_conditions = parseConditionStrings(filter_node->getConditions(), all_conditions);
-        
-        return std::make_shared<FilterPlan>(T_Filter, child_plan, filter_conditions);
-        
-    } else if (auto join_node = std::dynamic_pointer_cast<JoinNode>(node)) {
-        // 转换Join节点
-        auto left_plan = convertPlanTreeNodeToPlan(join_node->getLeft(), all_conditions);
-        auto right_plan = convertPlanTreeNodeToPlan(join_node->getRight(), all_conditions);
-        auto join_conditions = parseConditionStrings(join_node->getConditions(), all_conditions);
-        
-        return std::make_shared<JoinPlan>(T_NestLoop, left_plan, right_plan, join_conditions);
-        
-    } else if (auto project_node = std::dynamic_pointer_cast<ProjectNode>(node)) {
+    if (auto project_node = std::dynamic_pointer_cast<ProjectNode>(node)) {
         // 转换Project节点
         auto child_plan = convertPlanTreeNodeToPlan(project_node->getChild(), all_conditions);
         
@@ -968,6 +906,60 @@ std::shared_ptr<Plan> QueryOptimizer::convertPlanTreeNodeToPlan(std::shared_ptr<
         }
         
         return std::make_shared<ProjectionPlan>(T_Projection, child_plan, sel_cols);
+    } else if (auto join_node = std::dynamic_pointer_cast<JoinNode>(node)) {
+        // 转换Join节点
+        auto left_plan = convertPlanTreeNodeToPlan(join_node->getLeft(), all_conditions);
+        auto right_plan = convertPlanTreeNodeToPlan(join_node->getRight(), all_conditions);
+        auto join_conditions = parseConditionStrings(join_node->getConditions(), all_conditions);
+        
+        return std::make_shared<JoinPlan>(T_NestLoop, left_plan, right_plan, join_conditions);
+    } else if (auto filter_node = std::dynamic_pointer_cast<FilterNode>(node)) {
+        // 转换Filter节点
+        auto child_plan = convertPlanTreeNodeToPlan(filter_node->getChild(), all_conditions);
+        auto filter_conditions = parseConditionStrings(filter_node->getConditions(), all_conditions);
+        
+        return std::make_shared<FilterPlan>(T_Filter, child_plan, filter_conditions);
+    } else if (auto scan_node = std::dynamic_pointer_cast<ScanNode>(node)) {
+        // 转换Scan节点
+        std::string table_name = scan_node->getTableName();
+        std::vector<Condition> table_conditions = findConditionsForTables(all_conditions, {table_name});
+        
+        // 检查是否有索引可用
+        std::vector<std::string> index_col_names;
+        bool index_exist = false;
+        
+        if (planner_) {
+            // 使用Planner的索引检查功能
+            auto temp_conditions = table_conditions;  // 复制一份，因为get_index_cols可能修改
+            index_exist = planner_->get_index_cols(const_cast<std::string&>(table_name), temp_conditions, index_col_names);
+        } else {
+            // 简化的索引检查：只检查是否有等值条件
+            for (const auto& cond : table_conditions) {
+                if (cond.is_rhs_val && cond.op == OP_EQ) {
+                    try {
+                        auto& table_meta = sm_manager_->db_.get_table(table_name);
+                        for (const auto& [index_name, index] : table_meta.indexes) {
+                            if (!index.cols.empty() && index.cols[0].name == cond.lhs_col.col_name) {
+                                index_col_names.push_back(cond.lhs_col.col_name);
+                                index_exist = true;
+                                break;
+                            }
+                        }
+                        if (index_exist) break;
+                    } catch (...) {
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        if (index_exist) {
+            return std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, table_name, 
+                                            table_conditions, index_col_names);
+        } else {
+            return std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, table_name, 
+                                            table_conditions, std::vector<std::string>());
+        }
     }
     
     return nullptr;
@@ -1030,12 +1022,12 @@ std::vector<Condition> QueryOptimizer::parseConditionStrings(const std::vector<s
                 
                 // 转换操作符字符串为CompOp
                 CompOp target_op;
-                if (op_str == "=") target_op = OP_EQ;
-                else if (op_str == "<>") target_op = OP_NE;
-                else if (op_str == "<") target_op = OP_LT;
-                else if (op_str == ">") target_op = OP_GT;
+                if (op_str == ">=") target_op = OP_GE;
                 else if (op_str == "<=") target_op = OP_LE;
-                else if (op_str == ">=") target_op = OP_GE;
+                else if (op_str == ">") target_op = OP_GT;
+                else if (op_str == "<") target_op = OP_LT;
+                else if (op_str == "<>") target_op = OP_NE;
+                else if (op_str == "=") target_op = OP_EQ;
                 else continue;  // 不支持的操作符
                 
                 for (const auto& cond : all_conditions) {
@@ -1053,13 +1045,8 @@ std::vector<Condition> QueryOptimizer::parseConditionStrings(const std::vector<s
                             // 检查值是否匹配
                             bool value_matches = false;
                             switch (cond.rhs_val.type) {
-                                case TYPE_INT: {
-                                    try {
-                                        int parsed_val = std::stoi(value_str);
-                                        value_matches = (cond.rhs_val.int_val == parsed_val);
-                                    } catch (...) {
-                                        value_matches = false;
-                                    }
+                                case TYPE_STRING: {
+                                    value_matches = (cond.rhs_val.str_val == value_str);
                                     break;
                                 }
                                 case TYPE_FLOAT: {
@@ -1072,8 +1059,13 @@ std::vector<Condition> QueryOptimizer::parseConditionStrings(const std::vector<s
                                     }
                                     break;
                                 }
-                                case TYPE_STRING: {
-                                    value_matches = (cond.rhs_val.str_val == value_str);
+                                case TYPE_INT: {
+                                    try {
+                                        int parsed_val = std::stoi(value_str);
+                                        value_matches = (cond.rhs_val.int_val == parsed_val);
+                                    } catch (...) {
+                                        value_matches = false;
+                                    }
                                     break;
                                 }
                             }
@@ -1107,13 +1099,15 @@ double QueryOptimizer::getJoinSelectivity(const Condition& condition) {
     if (condition.op == OP_EQ) {
         // 等值连接的选择性通常较高
         return 0.1;  // 10%
+    } else if (condition.op == OP_NE) {
+        // 不等条件的选择性
+        return 0.9;   // 90%
     } else if (condition.op == OP_LT || condition.op == OP_GT || 
                condition.op == OP_LE || condition.op == OP_GE) {
         // 范围条件的选择性
         return 0.33;  // 33%
     } else {
-        // 不等条件的选择性
-        return 0.9;   // 90%
+        return 0.1;   // 默认
     }
 }
 
@@ -1210,4 +1204,3 @@ bool QueryOptimizer::belongsToSingleTable(const std::string& column, const std::
     
     return false;
 }
- 
