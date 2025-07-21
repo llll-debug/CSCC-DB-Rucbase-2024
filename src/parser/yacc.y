@@ -43,6 +43,7 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %type <sv_vals> valueList
 %type <sv_str> tbName colName
 %type <sv_strs> tableList colNameList
+%type <sv_joins> joinList
 %type <sv_col> col
 %type <sv_cols> colList selector
 %type <sv_set_clause> setClause
@@ -109,10 +110,6 @@ dbStmt:
     {
         $$ = std::make_shared<ShowTables>();
     }
-    |   SHOW INDEX FROM tbName
-    {
-        $$ = std::make_shared<ShowIndexes>($4);
-    }
     ;
 
 setStmt:
@@ -158,9 +155,33 @@ dml:
     {
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
-    |   SELECT selector FROM tableList optWhereClause opt_order_clause
+    |   SELECT selector FROM tableList joinList optWhereClause opt_order_clause
     {
-        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6);
+        std::vector<std::string> tabs = $4;
+        std::vector<std::shared_ptr<JoinExpr>> joins = $5;
+
+        if (!joins.empty()) {
+            if (tabs.empty()) {
+                yyerror(&@$, "No initial table for JOIN");
+                YYABORT;
+            }
+            // Set first join's left to initial table
+            joins[0]->left = tabs[0];
+            tabs.erase(tabs.begin());
+
+            // Set subsequent joins' left to previous join's right
+            for (size_t i = 1; i < joins.size(); ++i) {
+                joins[i]->left = joins[i-1]->right;
+            }
+
+            // Collect right tables from joins
+            for (const auto& join : joins) {
+                tabs.push_back(join->right);
+            }
+        }
+
+        $$ = std::make_shared<SelectStmt>($2, tabs, $6, $7);
+        $$->jointree = joins;
     }
     ;
 
@@ -359,9 +380,24 @@ tableList:
     {
         $$.push_back($3);
     }
-    |   tableList JOIN tbName
+    ;
+
+joinList:
+    /* empty */ { $$ = {}; }
+    |   joinList INNER JOIN tbName ON whereClause
     {
-        $$.push_back($3);
+        auto join = std::make_shared<JoinExpr>("", $4, $6, INNER_JOIN);
+        $$.push_back(join);
+    }
+    |   joinList LEFT JOIN tbName ON whereClause
+    {
+        auto join = std::make_shared<JoinExpr>("", $4, $6, LEFT_JOIN);
+        $$.push_back(join);
+    }
+    |   joinList RIGHT JOIN tbName ON whereClause
+    {
+        auto join = std::make_shared<JoinExpr>("", $4, $6, RIGHT_JOIN);
+        $$.push_back(join);
     }
     ;
 

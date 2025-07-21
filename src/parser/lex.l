@@ -1,4 +1,4 @@
-    /* keywords are case insensitive */
+/* keywords are case insensitive */
 %option caseless
     /* we don't need yywrap() function */
 %option noyywrap
@@ -38,7 +38,7 @@ sign "+"|"-"
 identifier {alpha}(_|{alpha}|{digit})*
 value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
-value_string '[^']*'
+value_string '([^']|\\')*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
 %x STATE_COMMENT
