@@ -25,12 +25,12 @@ struct ColDef {
     int len;           // Length of column
 };
 
-/* 系统管理器，负责元数据管理和DDL语句的执行 */
+/* System manager, responsible for metadata management and DDL statement execution */
 class SmManager {
    public:
-    DbMeta db_;             // 当前打开的数据库的元数据
-    std::unordered_map<std::string, std::unique_ptr<RmFileHandle>> fhs_;    // file name -> record file handle, 当前数据库中每张表的数据文件
-    std::unordered_map<std::string, std::unique_ptr<IxIndexHandle>> ihs_;   // file name -> index file handle, 当前数据库中每个索引的文件
+    DbMeta db_;             // Metadata of currently opened database
+    std::unordered_map<std::string, std::unique_ptr<RmFileHandle>> fhs_;    // file name -> record file handle, data files for each table in current database
+    std::unordered_map<std::string, std::unique_ptr<IxIndexHandle>> ihs_;   // file name -> index file handle, files for each index in current database
    private:
     DiskManager* disk_manager_;
     BufferPoolManager* buffer_pool_manager_;
@@ -81,7 +81,7 @@ class SmManager {
     
     void drop_index(const std::string& tab_name, const std::vector<ColMeta>& col_names, Context* context);
     
-    // 新增：统计信息相关方法
+    // Statistics-related methods
     size_t getTableRowCount(const std::string& tab_name);
     
     std::vector<size_t> getColumnCardinalities(const std::string& tab_name);
