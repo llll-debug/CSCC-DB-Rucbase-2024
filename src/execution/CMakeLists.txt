@@ -1,4 +1,3 @@
-set(SOURCES execution_manager.cpp predicate_manager.h)
-add_library(execution STATIC ${SOURCES})
-
-target_link_libraries(execution system record transaction planner)
+set(SOURCES ix_index_handle.cpp ix_scan.cpp)
+add_library(index STATIC ${SOURCES})
+target_link_libraries(index storage)
